@@ -46,26 +46,8 @@ for tic in nsdq.index:
 for tic in nyse.index:
     options.append({'label': '{} {}'.format(tic, nyse.loc[tic]['Name']), 'value':tic})
 
-#Get user input for stock choice and function information
-symbol = input('Stock Symbol: \n')
-datatype = 'datatype=csv'
 
-function = input("Function: \n")
-if function== 'TIME_SERIES_INTRADAY' :
-    interval = input('Time interval in minutes: \n')
-    symbol = symbol + '&interval=' + interval + 'min'
-
-#Define Api call
-API_KEY = 'VW506K51LFXGUT1C'
-API_QUERY = 'https://www.alphavantage.co/query?function=' + function + '&symbol=' + symbol + '&' + 'apikey=' + API_KEY+'&' +datatype
-
-#Define Dataframe and resolve issues with Intraday graph range
-if function == 'TIME_SERIES_INTRADAY' :
-    df = pd.read_csv(API_QUERY)
-
-else:
-    df = pd.read_csv(API_QUERY)
-
+#Array with options to alter graph type within plotly
 graph_options=[
             {'label': 'Time Series Intraday', 'value' : 'TIME_SERIES_INTRADAY'},
             {'label': 'Time Series Daily', 'value' : 'TIME_SERIES_DAILY'},
@@ -75,7 +57,11 @@ graph_options=[
             {'label': 'Time Series Monthly', 'value' : 'TIME_SERIES_MONTHLY'},
             {'label': 'Time Series Monthly Adjusted', 'value' : 'TIME_SERIES_MONTHLY_ADJUSTED'}
         ]
+
+#Set the application layout
 app.layout = html.Div(([
+
+    #Dropdown menu for stock selection
     html.Div([
         dcc.Dropdown(
         id='stock-symbol',
@@ -84,6 +70,7 @@ app.layout = html.Div(([
         multi=True)
         ], style={'display': 'flex', 'verticalAlign':'top', 'width':'30%'}),
 
+    #Dropdown menu for graph type
     html.Div([
         dcc.Dropdown(
             id='graph-type',
@@ -92,6 +79,7 @@ app.layout = html.Div(([
     )
     ], style={'display': 'flex', 'verticalAlign':'top', 'width':'30%'}),
 
+    #Submit button to render the graphs again
     html.Div([
         html.Button(
             id='submit-button',
@@ -100,51 +88,50 @@ app.layout = html.Div(([
             style={'fontSize':24, 'marginLeft':'30px'}
         )
     ], style={'display': 'flex', 'verticalAlign': 'top', 'width': '30%'}),
-
-    html.Div([
-        dcc.Graph(id='linegraph',
-                  figure={
-                      'data': [
-                          go.Scatter(x=df['timestamp'], y=df['close'],
-                                     mode='lines', marker={
-                                  'size': 12,
-                                  'color': '#4dff4d'
-                              })],
-                      'layout': go.Layout(title='Stock prices over time')}),
-    ]),
-
+    #Display candlestick graph
     html.Div([
         dcc.Graph(id='candlestick',
                       figure={
-                          'data': [
-                              go.Candlestick(x=df['timestamp'],
-                                             open=df['open'],
-                                             high=df['high'],
-                                             low=df['low'],
-                                             close=df['close'],
-                                             increasing_line_color='#4DFF4D',
-                                             decreasing_line_color='#193EFD'
-                                             )
-                          ],
-                            'layout': go.Layout(title='Candlestick Graph of prices over time')
+
                       })
 
     ])
-]
-))
-@app.callback(Output('linegraph', 'figure'),
-              [Input('submit-button', 'n_clicks')],
-              [State('stock-symbol', 'value'),
-               State('graph-type', 'value')])
 
-def update_figure(n_clicks, selected_graph_type, selected_stock_symbol):
-    function = selected_graph_type
-    symbol = selected_stock_symbol
-    API_QUERY = 'https://www.alphavantage.co/query?function=' + function + '&symbol=' + symbol + '&' + 'apikey=' + API_KEY + '&' + datatype
-    df1 = pd.read_csv(API_QUERY)
-    return {'data': df1, 'layout': go.Layout(title='Stock prices over time')}
+]))
 
+#Update graphs based on new graph and stock selection
+def generateCandleStick(symbol, function):
+    #Run the API_QUERY Every time the graph must be updated, then generate the graph with the information returned. Use pandas to generate a new dataframe that the graph will display.
 
+    #Get all variables for the query from the user inputs on the page.
+    stock = symbol
+    graph = function
+    datatype = 'datatype=csv'
+    API_KEY = 'VW506K51LFXGUT1C'
+    API_QUERY = 'https://www.alphavantage.co/query?function=' + graph + '&symbol=' + stock + '&' + 'apikey=' + API_KEY+'&' +datatype
+
+    #Generate dataframe
+    df = pd.read_csv(API_QUERY)
+    print(df)
+    print('test')
+
+    #Use dataframe to generate graph
+    return {
+    'data': [
+        go.Candlestick(x=df['timestamp'],
+                       open=df['open'],
+                       high=df['high'],
+                       low=df['low'],
+                       close=df['close'],
+                       increasing_line_color='#4DFF4D',
+                       decreasing_line_color='#193EFD'
+                       )
+    ],
+      'layout': go.Layout(title='Candlestick Graph of prices of ${stock} over time')
+}
+@app.callback([Output('candlestick', 'figure')],
+              [Input('stock-symbol', 'value'),
+              Input('graph-type', 'value')])
 
 if __name__ == '__main__':
     app.run_server()
